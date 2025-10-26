@@ -260,19 +260,16 @@ public final class Room {
     }
 
     /**
-     * Adds clipping flags for a scenery object at the given location in this room.
-     *
-     * @param object The scenery object.
-     * @param house  The player's house manager.
+     * Adds the collision/blocking flags for a scenery object in this room.
      */
     public void addObjectClipping(Scenery object, HouseManager house) {
         Decoration deco = Decoration.getDecoration(house.getOwner(), object);
         if (deco == null) return;
 
-        int mask = deco.getObjectId();
+        int mask = deco.getBlockMask();
         if (mask == 0) return;
 
-        int z = house.getRoomPlane(this); // metoda zwracająca plane tego pokoju
+        int z = house.getRoomPlane(this);
         int x = object.getLocation().getChunkOffsetX();
         int y = object.getLocation().getChunkOffsetY();
 

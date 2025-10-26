@@ -567,8 +567,44 @@ public enum Decoration {
     private final int[] tools;
     private final int[] objectIds;
     private boolean invisibleNode;
+    private final int blockMask;
+    private final String name;
 
-    private Decoration(Integer objectId, int[] objectIds, int interfaceItem, int level, Integer flatpackItemId, int experience, int[] tools, Item[] items, Item[] refundItems, boolean invisibleNode) {
+    private Decoration(Integer objectId, int[] objectIds, int interfaceItem, int level, Integer flatpackItemId, int experience,
+                       int[] tools, Item[] items, Item[] refundItems, boolean invisibleNode) {
+        this(objectId, objectIds, interfaceItem, level, flatpackItemId, experience, tools, items, refundItems, invisibleNode, 0, null);
+    }
+
+    Decoration(int objectId, int interfaceItem, int level, int experience) {
+        this(objectId, null, interfaceItem, level, null, experience, null, null, null, false, 0, null);
+    }
+
+    Decoration(int objectId, int interfaceItem, int level, int experience, Item[] items) {
+        this(objectId, null, interfaceItem, level, null, experience, null, items, null, false, 0, null);
+    }
+
+    Decoration(int objectId, int interfaceItem, int level, int experience, int[] tools, Item[] items) {
+        this(objectId, null, interfaceItem, level, null, experience, tools, items, null, false, 0, null);
+    }
+
+    Decoration(int objectId, int interfaceItem, int level, int experience, Item[] items, Item[] refundItems) {
+        this(objectId, null, interfaceItem, level, null, experience, null, items, refundItems, false, 0, null);
+    }
+
+    Decoration(int objectId, int interfaceItem, int level, int flatpackItemId, int experience, Item... items) {
+        this(objectId, null, interfaceItem, level, flatpackItemId, experience, null, items, null, false, 0, null);
+    }
+
+    Decoration(int objectId, boolean invisibleNode) {
+        this(objectId, null, -1, -1, null, -1, null, null, null, invisibleNode, 0, "Invisible Node");
+    }
+
+    Decoration(int[] objectIds, int interfaceItem, int level, int experience, Item[] items) {
+        this(null, objectIds, interfaceItem, level, null, experience, null, items, null, false, 0, null);
+    }
+
+    private Decoration(Integer objectId, int[] objectIds, int interfaceItem, int level, Integer flatpackItemId, int experience,
+                       int[] tools, Item[] items, Item[] refundItems, boolean invisibleNode, int blockMask, String name) {
         this.objectId = (objectId != null) ? objectId : (objectIds != null && objectIds.length > 0 ? objectIds[0] : -1);
         this.objectIds = objectIds;
         this.interfaceItem = interfaceItem;
@@ -579,35 +615,25 @@ public enum Decoration {
         this.items = (items != null) ? items : new Item[]{};
         this.refundItems = (refundItems != null) ? refundItems : new Item[]{};
         this.invisibleNode = invisibleNode;
+        this.blockMask = blockMask;
+        this.name = name;
     }
 
-    Decoration(int objectId, int interfaceItem, int level, int experience) {
-        this(objectId, null, interfaceItem, level, null, experience, null, null, null, false);
+    Decoration(int objectId, boolean invisibleNode, int flatpackItemId, Item[] items, Item[] refundItems, int[] tools, int[] objectIds, int blockMask) {
+        this.objectId = objectId;
+        this.flatpackItemId = flatpackItemId;
+        this.items = items;
+        this.refundItems = refundItems;
+        this.tools = tools;
+        this.objectIds = objectIds;
+        this.interfaceItem = -1;
+        this.level = -1;
+        this.experience = -1;
+        this.blockMask = blockMask;
+        this.invisibleNode = invisibleNode;
+        this.name = "Invisible Node";
     }
 
-    Decoration(int objectId, int interfaceItem, int level, int experience, Item[] items) {
-        this(objectId, null, interfaceItem, level, null, experience, null, items, null, false);
-    }
-
-    Decoration(int objectId, int interfaceItem, int level, int experience, int[] tools, Item[] items) {
-        this(objectId, null, interfaceItem, level, null, experience, tools, items, null, false);
-    }
-
-    Decoration(int objectId, int interfaceItem, int level, int experience, Item[] items, Item[] refundItems) {
-        this(objectId, null, interfaceItem, level, null, experience, null, items, refundItems, false);
-    }
-
-    Decoration(int objectId, int interfaceItem, int level, int flatpackItemId, int experience, Item... items) {
-        this(objectId, null, interfaceItem, level, flatpackItemId, experience, null, items, null, false);
-    }
-
-    Decoration(int objectId, boolean invisibleNode) {
-        this(objectId, null, -1, -1, null, -1, null, null, null, invisibleNode);
-    }
-
-    Decoration(int[] objectIds, int interfaceItem, int level, int experience, Item[] items) {
-        this(null, objectIds, interfaceItem, level, null, experience, null, items, null, false);
-    }
 
     public static Decoration getDecoration(Player player, Scenery object) {
         Location l = object.getLocation();

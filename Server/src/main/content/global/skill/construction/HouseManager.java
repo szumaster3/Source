@@ -14,6 +14,7 @@ import core.game.node.scenery.Scenery;
 import core.game.system.task.Pulse;
 import core.game.world.map.*;
 import core.game.world.map.build.DynamicRegion;
+import core.game.world.map.dynamic.DynamicRegionFlags;
 import core.game.world.map.zone.ZoneBorders;
 import core.game.world.map.zone.ZoneBuilder;
 import core.game.world.update.flag.context.Animation;
@@ -47,6 +48,22 @@ public final class HouseManager {
      * The current region.
      */
     private DynamicRegion houseRegion;
+
+    /**
+     * The region clipping flags for main house area.
+     */
+    private DynamicRegionFlags houseFlags;
+
+    /**
+     * The region clipping flags for dungeon area
+     * </p>
+     */
+    private DynamicRegionFlags dungeonFlags;
+
+    /**
+     * Clipping flags for the dungeon region.
+     */
+    private DynamicRegionFlags dynamicFlags = new DynamicRegionFlags();
 
     /**
      * The current region.
@@ -223,12 +240,19 @@ public final class HouseManager {
      */
     public static void leave(Player player) {
         HouseManager house = player.getAttribute(GameAttributes.POH_PORTAL, player.getHouseManager());
-        if (house.getHouseRegion() == null) {
+        if (house == null || house.getHouseRegion() == null) {
             return;
         }
+
         if (house.isInHouse(player)) {
             player.animate(Animation.RESET);
             player.getProperties().setTeleportLocation(house.location.getExitLocation());
+            if (house.houseFlags != null) {
+                house.houseFlags.clear();
+            }
+            if (house.dungeonFlags != null) {
+                house.dungeonFlags.clear();
+            }
         }
     }
 
@@ -376,12 +400,15 @@ public final class HouseManager {
      */
     public DynamicRegion construct() {
         houseRegion = getPreparedRegion();
+        houseFlags = new DynamicRegionFlags();
+
         configureRoofs();
         prepareHouseChunks(style, houseRegion, buildingMode, rooms);
         houseRegion.flagActive();
 
         if (hasDungeon()) {
             dungeonRegion = getPreparedRegion();
+            dungeonFlags = new DynamicRegionFlags();
             prepareDungeonChunks(style, dungeonRegion, houseRegion, buildingMode, rooms[3]);
             dungeonRegion.flagActive();
         }
@@ -921,5 +948,33 @@ public final class HouseManager {
      */
     public HouseZone getZone() {
         return zone;
+    }
+
+
+    /**
+     * Gets the runtime dynamic clipping flags for this player's house.
+     *
+     * @return The {@link DynamicRegionFlags} used to store active movement-blocking flags.
+     */
+    public DynamicRegionFlags getDynamicFlags() {
+        return dynamicFlags;
+    }
+
+    /**
+     * Gets the clipping flags for the main (above-ground) house region.
+     *
+     * @return The {@link DynamicRegionFlags} instance for the main region, or {@code null} if not constructed.
+     */
+    public DynamicRegionFlags getHouseFlags() {
+        return houseFlags;
+    }
+
+    /**
+     * Gets the clipping flags for the dungeon region, if one exists.
+     *
+     * @return The {@link DynamicRegionFlags} instance for the dungeon, or {@code null} if not present.
+     */
+    public DynamicRegionFlags getDungeonFlags() {
+        return dungeonFlags;
     }
 }

@@ -1,10 +1,12 @@
 package content.global.skill.construction;
 
+import core.cache.def.impl.SceneryDefinition;
 import core.game.node.entity.player.Player;
 import core.game.node.scenery.Constructed;
 import core.game.node.scenery.Scenery;
 import core.game.node.scenery.SceneryBuilder;
 import core.game.world.map.*;
+import core.game.world.map.build.RegionFlags;
 import core.tools.Log;
 
 import static core.api.ContentAPIKt.log;
@@ -133,38 +135,153 @@ public final class Room {
      * @param chunk      The chunk used in the dynamic region.
      */
     public void loadDecorations(int housePlane, BuildRegionChunk chunk, HouseManager house) {
+        DynamicRegionFlags flags = house.getDynamicFlags();
         for (int i = 0; i < hotspots.length; i++) {
             Hotspot spot = hotspots[i];
             int x = spot.getChunkX();
             int y = spot.getChunkY();
+
             if (spot.getHotspot() == null) {
                 continue;
             }
+
             int index = chunk.getIndex(x, y, spot.getHotspot().getObjectId(house.getStyle()));
             Scenery[][] objects = chunk.getObjects(index);
             Scenery object = objects[x][y];
+
             if (object != null && object.getId() == spot.getHotspot().getObjectId(house.getStyle())) {
                 if (spot.getDecorationIndex() > -1 && spot.getDecorationIndex() < spot.getHotspot().getDecorations().length) {
                     int id = spot.getHotspot().getDecorations()[spot.getDecorationIndex()].getObjectId(house.getStyle());
                     if (spot.getHotspot().getType() == BuildHotspotType.CREST) {
                         id += house.getCrest().ordinal();
                     }
-                    SceneryBuilder.replace(object, object.transform(id, object.getRotation(), chunk.getCurrentBase().transform(x, y, 0)));
-                } else if (object.getId() == BuildHotspot.WINDOW.getObjectId(house.getStyle()) || (!house.isBuildingMode() && object.getId() == BuildHotspot.CHAPEL_WINDOW.getObjectId(house.getStyle()))) {
-                    chunk.add(object.transform(house.getStyle().getWindow().getObjectId(house.getStyle()), object.getRotation(), object.getType()));
+
+                    Scenery newObj = object.transform(id, object.getRotation(), chunk.getCurrentBase().transform(x, y, 0));
+                    SceneryBuilder.replace(object, newObj);
+
+                    SceneryDefinition def = SceneryDefinition.forId(id);
+                    if (def != null && def.isSecondBool()) {
+                        addObjectClipping(flags, newObj);
+                    }
+
+                } else if (object.getId() == BuildHotspot.WINDOW.getObjectId(house.getStyle()) || (!house.isBuildingMode() && object.getId() == BuildHotspot.CHAPEL_WINDOW.getObjectId(house.getStyle()))) {Scenery newObj = object.transform(house.getStyle().getWindow().getObjectId(house.getStyle()), object.getRotation(), object.getType());
+                    chunk.add(newObj);
+                    SceneryDefinition def = SceneryDefinition.forId(newObj.getId());
+                    if (def != null && def.isSecondBool()) {
+                        addObjectClipping(flags, newObj);
+                    }
                 }
+
                 int[] pos = RegionChunk.getRotatedPosition(x, y, object.getSizeX(), object.getSizeY(), 0, rotation.toInteger());
                 spot.setCurrentX(pos[0]);
                 spot.setCurrentY(pos[1]);
             }
         }
+
         if (rotation != Direction.NORTH && chunk.getRotation() == 0) {
             chunk.rotate(rotation);
         }
+
         if (!house.isBuildingMode()) {
             placeDoors(housePlane, house, chunk);
             removeHotspots(housePlane, house, chunk);
         }
+    }
+
+
+    /**
+     * Loads the room's decorations into the given chunk, setting all relevant flags automatically.
+     *
+     * @param housePlane The plane of the house (z-level).
+     * @param chunk      The build region chunk.
+     * @param house      The house manager.
+     */
+    public void loadDecorations(int housePlane, BuildRegionChunk chunk, HouseManager house) {
+        for (int i = 0; i < hotspots.length; i++) {
+            Hotspot spot = hotspots[i];
+            if (spot.getHotspot() == null) continue;
+
+            int x = spot.getChunkX();
+            int y = spot.getChunkY();
+            int index = chunk.getIndex(x, y, spot.getHotspot().getObjectId(house.getStyle()));
+            Scenery[][] objects = chunk.getObjects(index);
+            Scenery object = objects[x][y];
+
+            if (object != null && object.getId() == spot.getHotspot().getObjectId(house.getStyle())) {
+
+                // Apply the chosen decoration
+                if (spot.getDecorationIndex() > -1 && spot.getDecorationIndex() < spot.getHotspot().getDecorations().length) {
+                    Decoration deco = spot.getHotspot().getDecorations()[spot.getDecorationIndex()];
+                    int decoId = deco.getObjectId(house.getStyle());
+                    if (spot.getHotspot().getType() == BuildHotspotType.CREST) {
+                        decoId += house.getCrest().ordinal();
+                    }
+                    SceneryBuilder.replace(object, object.transform(decoId, object.getRotation(), chunk.getCurrentBase().transform(x, y, 0)));
+
+                    // Add flags for this decoration
+                    house.getHouseFlags().addFlag(housePlane, x, y, deco.getBlockMask());
+                    house.getDynamicFlags().addFlag(housePlane, x, y, deco.getBlockMask());
+                }
+
+                // Special handling for windows in non-building mode
+                else if (object.getId() == BuildHotspot.WINDOW.getObjectId(house.getStyle()) ||
+                        (!house.isBuildingMode() && object.getId() == BuildHotspot.CHAPEL_WINDOW.getObjectId(house.getStyle()))) {
+                    chunk.add(object.transform(house.getStyle().getWindow().getObjectId(house.getStyle()), object.getRotation(), object.getType()));
+
+                    // Block the window tile
+                    house.getHouseFlags().addFlag(housePlane, x, y, RegionFlags.OBJECT_BLOCK);
+                }
+
+                // Update hotspot runtime position after rotation
+                int[] pos = RegionChunk.getRotatedPosition(x, y, object.getSizeX(), object.getSizeY(), 0, rotation.toInteger());
+                spot.setCurrentX(pos[0]);
+                spot.setCurrentY(pos[1]);
+            }
+        }
+
+        // Rotate the chunk if the room is rotated
+        if (rotation != Direction.NORTH && chunk.getRotation() == 0) {
+            chunk.rotate(rotation);
+        }
+
+        // Place doors and remove temporary hotspots only in non-building mode
+        if (!house.isBuildingMode()) {
+            placeDoors(housePlane, house, chunk);
+
+            // Add door flags
+            for (Hotspot door : hotspots) {
+                if (door.getHotspot() != null && door.getHotspot().getType() == BuildHotspotType.DOOR) {
+                    house.getHouseFlags().addFlag(housePlane, door.getCurrentX(), door.getCurrentY(), RegionFlags.DOOR_BLOCK);
+                }
+            }
+
+            removeHotspots(housePlane, house, chunk);
+        }
+    }
+
+    /**
+     * Adds clipping flags for a scenery object at the given location in this room.
+     *
+     * @param object The scenery object.
+     * @param house  The player's house manager.
+     */
+    public void addObjectClipping(Scenery object, HouseManager house) {
+        Decoration deco = Decoration.getDecoration(house.getOwner(), object);
+        if (deco == null) return;
+
+        int mask = deco.getObjectId();
+        if (mask == 0) return;
+
+        int z = house.getRoomPlane(this); // metoda zwracająca plane tego pokoju
+        int x = object.getLocation().getChunkOffsetX();
+        int y = object.getLocation().getChunkOffsetY();
+
+        if (house.isInDungeon(house.getOwner())) {
+            house.getDungeonFlags().addFlag(z, x, y, mask);
+        } else {
+            house.getHouseFlags().addFlag(z, x, y, mask);
+        }
+        house.getDynamicFlags().addFlag(z, x, y, mask);
     }
 
     /**

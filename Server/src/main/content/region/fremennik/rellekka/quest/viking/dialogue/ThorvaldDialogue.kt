@@ -19,7 +19,7 @@ import shared.consts.Quests
  * - [FremennikTrials]
  */
 @Initializable
-class ThorvalDialogue(player: Player? = null) : Dialogue(player) {
+class ThorvaldDialogue(player: Player? = null) : Dialogue(player) {
 
     override fun open(vararg args: Any?): Boolean {
         when {
